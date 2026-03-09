@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>nspeek — DNS Monitoring & Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0e17;
+  --bg-elevated: #111827;
+  --bg-card: #151d2e;
+  --surface: #1e293b;
+  --border: rgba(56, 189, 248, 0.12);
+  --border-bright: rgba(56, 189, 248, 0.3);
+  --cyan: #38bdf8;
+  --cyan-dim: #0ea5e9;
+  --green: #34d399;
+  --red: #f87171;
+  --amber: #fbbf24;
+  --purple: #a78bfa;
+  --text: #e2e8f0;
+  --text-dim: #94a3b8;
+  --text-muted: #64748b;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-display);
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── NOISE TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── GLOW ORB ── */
+.glow-orb {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 1rem 2rem;
+  backdrop-filter: blur(20px);
+  background: rgba(10, 14, 23, 0.8);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--cyan);
+  text-decoration: none;
+  letter-spacing: -0.5px;
+}
+
+.logo span { color: var(--text-muted); }
+
+.nav-links { display: flex; gap: 2rem; align-items: center; }
+.nav-links a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--cyan); }
+.nav-links a.btn-primary,
+.nav-links a.btn-primary:hover { color: #ffffff; }
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.5rem;
+  background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.25s;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #38bdf8, #60a5fa);
+  color: #ffffff;
+  box-shadow: 0 0 30px rgba(56, 189, 248, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.5rem;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid var(--border-bright);
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.25s;
+}
+.btn-secondary:hover {
+  border-color: var(--cyan);
+  background: rgba(56, 189, 248, 0.05);
+}
+
+/* ── HERO ── */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8rem 2rem 4rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+.hero .glow-orb { top: -200px; left: 50%; transform: translateX(-50%); }
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--cyan);
+  margin-bottom: 2rem;
+  animation: fadeDown 0.8s ease both;
+}
+
+.hero-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+}
+
+h1 {
+  font-size: clamp(3rem, 7vw, 5.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  margin-bottom: 1.5rem;
+  animation: fadeDown 0.8s 0.1s ease both;
+}
+
+h1 .gradient {
+  background: linear-gradient(135deg, var(--cyan) 0%, #818cf8 50%, var(--purple) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-sub {
+  font-size: 1.25rem;
+  color: var(--text-dim);
+  max-width: 600px;
+  line-height: 1.7;
+  font-weight: 300;
+  margin-bottom: 2.5rem;
+  animation: fadeDown 0.8s 0.2s ease both;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: fadeDown 0.8s 0.3s ease both;
+}
+
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── TERMINAL MOCKUP ── */
+.terminal-wrapper {
+  margin-top: 4rem;
+  width: 100%;
+  max-width: 780px;
+  animation: fadeUp 1s 0.5s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.terminal {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5), 0 0 40px rgba(56, 189, 248, 0.05);
+}
+
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border);
+}
+
+.terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.terminal-dot:nth-child(1) { background: #f87171; }
+.terminal-dot:nth-child(2) { background: #fbbf24; }
+.terminal-dot:nth-child(3) { background: #34d399; }
+
+.terminal-title {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.terminal-body {
+  padding: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.9;
+}
+
+.t-prompt { color: var(--cyan); }
+.t-cmd { color: var(--text); }
+.t-comment { color: var(--text-muted); }
+.t-ok { color: var(--green); }
+.t-warn { color: var(--amber); }
+.t-err { color: var(--red); }
+.t-dim { color: var(--text-muted); }
+.t-purple { color: var(--purple); }
+
+.t-line {
+  opacity: 0;
+  animation: typeLine 0.3s ease forwards;
+}
+
+.t-line:nth-child(1) { animation-delay: 0.8s; }
+.t-line:nth-child(2) { animation-delay: 1.2s; }
+.t-line:nth-child(3) { animation-delay: 1.5s; }
+.t-line:nth-child(4) { animation-delay: 1.8s; }
+.t-line:nth-child(5) { animation-delay: 2.1s; }
+.t-line:nth-child(6) { animation-delay: 2.4s; }
+.t-line:nth-child(7) { animation-delay: 2.7s; }
+.t-line:nth-child(8) { animation-delay: 3.0s; }
+.t-line:nth-child(9) { animation-delay: 3.3s; }
+.t-line:nth-child(10) { animation-delay: 3.5s; }
+
+@keyframes typeLine {
+  from { opacity: 0; transform: translateX(-5px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── SECTIONS ── */
+section {
+  padding: 6rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin-bottom: 1rem;
+}
+
+.section-desc {
+  font-size: 1.1rem;
+  color: var(--text-dim);
+  max-width: 600px;
+  line-height: 1.7;
+  font-weight: 300;
+}
+
+/* ── FEATURES GRID ── */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 4rem;
+}
+
+.feature-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem;
+  transition: all 0.35s;
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+
+.feature-card:hover {
+  border-color: var(--border-bright);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.feature-card:hover::before { opacity: 1; }
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  margin-bottom: 1.25rem;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid var(--border);
+}
+
+.feature-card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  letter-spacing: -0.3px;
+}
+
+.feature-card p {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  line-height: 1.65;
+  font-weight: 300;
+}
+
+/* ── LIVE DEMO SECTION ── */
+.demo-section {
+  position: relative;
+  padding: 6rem 2rem;
+}
+
+.demo-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.demo-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.demo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--border);
+}
+
+.demo-header h4 {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.status-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--green);
+  font-weight: 500;
+}
+
+.status-live .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse-dot 2s infinite;
+}
+
+.demo-body { padding: 1.5rem; }
+
+.record-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.record-row:last-child { border: none; }
+
+.record-type {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--cyan);
+  width: 55px;
+  text-align: center;
+}
+
+.record-value {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  flex: 1;
+  margin: 0 1rem;
+}
+
+.record-status {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+}
+
+.record-status.ok { background: rgba(52, 211, 153, 0.1); color: var(--green); }
+.record-status.warn { background: rgba(251, 191, 36, 0.1); color: var(--amber); }
+
+/* ── LATENCY BARS ── */
+.latency-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.latency-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.latency-bar-bg {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+
+.latency-bar {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  transition: width 1.5s ease;
+}
+
+.latency-ms {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  width: 50px;
+  text-align: right;
+}
+
+/* ── PRICING ── */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-top: 4rem;
+}
+
+.price-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem;
+  position: relative;
+  transition: all 0.35s;
+}
+
+.price-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-bright);
+}
+
+.price-card.featured {
+  border-color: var(--cyan);
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.1);
+}
+
+.price-card.featured::before {
+  content: 'POPULAR';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.25rem 1rem;
+  background: var(--cyan);
+  color: var(--bg);
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 999px;
+  letter-spacing: 1px;
+}
+
+.price-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 1rem;
+}
+
+.price-amount {
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: -2px;
+  margin-bottom: 0.25rem;
+}
+
+.price-amount span {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0;
+}
+
+.price-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.price-features {
+  list-style: none;
+  margin-bottom: 2rem;
+}
+
+.price-features li {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  padding: 0.4rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.price-features li::before {
+  content: '✓';
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.price-card .btn-primary, .price-card .btn-secondary {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── CTA ── */
+.cta-section {
+  position: relative;
+  padding: 8rem 2rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+.cta-section .glow-orb {
+  bottom: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.cta-section .section-title { max-width: 700px; margin: 0 auto 1rem; }
+.cta-section .section-desc { margin: 0 auto 2.5rem; }
+
+.cta-input-group {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.cta-input-group input {
+  flex: 1;
+  padding: 0.8rem 1.2rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.25s;
+}
+
+.cta-input-group input::placeholder { color: var(--text-muted); }
+.cta-input-group input:focus { border-color: var(--cyan); }
+
+/* ── FOOTER ── */
+footer {
+  padding: 3rem 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footer-inner p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--cyan); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .features-grid { grid-template-columns: 1fr 1fr; }
+  .pricing-grid { grid-template-columns: 1fr 1fr; }
+  .demo-container { grid-template-columns: 1fr; }
+  .nav-links a:not(.btn-primary) { display: none; }
+}
+
+@media (max-width: 600px) {
+  .features-grid { grid-template-columns: 1fr; }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .cta-input-group { flex-direction: column; }
+  .hero { padding: 7rem 1.5rem 3rem; }
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="logo">nspeek<span>.com</span></a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#demo">How It Works</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#cta" class="btn-primary">Get Early Access</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="glow-orb"></div>
+  <div class="hero-badge">
+    <span class="dot"></span>
+    Launching Soon — Join the Waitlist
+  </div>
+  <h1>Your DNS,<br><span class="gradient">always visible.</span></h1>
+  <p class="hero-sub">nspeek monitors your DNS records across the globe, tracks every change, measures resolution performance, and alerts you before problems become outages.</p>
+  <div class="hero-actions">
+    <a href="#cta" class="btn-primary">Get Early Access →</a>
+    <a href="#features" class="btn-secondary">See How It Works</a>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal-wrapper">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dot"></div>
+        <div class="terminal-dot"></div>
+        <div class="terminal-dot"></div>
+        <div class="terminal-title">nspeek — acmecorp.com</div>
+      </div>
+      <div class="terminal-body">
+        <div class="t-line"><span class="t-prompt">$ </span><span class="t-cmd">nspeek monitor acmecorp.com</span></div>
+        <div class="t-line"><span class="t-comment">  Discovering DNS records...</span></div>
+        <div class="t-line"><br></div>
+        <div class="t-line"><span class="t-ok">  ✓ A</span><span class="t-dim">       104.26.10.78        12ms    </span><span class="t-ok">HEALTHY</span></div>
+        <div class="t-line"><span class="t-ok">  ✓ AAAA</span><span class="t-dim">    2606:4700::681a      8ms     </span><span class="t-ok">HEALTHY</span></div>
+        <div class="t-line"><span class="t-ok">  ✓ MX</span><span class="t-dim">      mail.acmecorp.com    22ms    </span><span class="t-ok">HEALTHY</span></div>
+        <div class="t-line"><span class="t-ok">  ✓ NS</span><span class="t-dim">      ns1.cloudflare.com   5ms     </span><span class="t-ok">HEALTHY</span></div>
+        <div class="t-line"><span class="t-warn">  ⚠ TXT</span><span class="t-dim">     SPF record            —      </span><span class="t-warn">MISSING</span></div>
+        <div class="t-line"><br></div>
+        <div class="t-line"><span class="t-purple">  ▸ Monitoring active.</span><span class="t-dim"> Checking from 24 global locations every 60s.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-label">Features</div>
+  <div class="section-title">Everything you need to<br>own your DNS.</div>
+  <p class="section-desc">Most teams fly blind on DNS until something breaks. nspeek gives you continuous, global visibility into the infrastructure layer everything depends on.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🌍</div>
+      <h3>Global Resolution Checks</h3>
+      <p>Continuous queries from 24+ worldwide locations. See exactly how your DNS performs from every continent, every minute.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔔</div>
+      <h3>Instant Alerts</h3>
+      <p>Get notified via Slack, email, PagerDuty, or webhooks the moment a record changes, fails to resolve, or degrades.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Performance Analytics</h3>
+      <p>Resolution time graphs by region, TTL analysis, and percentile breakdowns. Spot trends before they become incidents.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔀</div>
+      <h3>Change Detection</h3>
+      <p>Every DNS record change is logged with a precise timestamp and before/after diff. Know exactly what changed and when.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🗺️</div>
+      <h3>Propagation Tracking</h3>
+      <p>Watch DNS changes roll out across the globe in real time. No more guessing if your update has propagated.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <h3>SLA Reporting</h3>
+      <p>Export clean PDF reports proving DNS availability and resolution performance. Built for SRE teams and MSP clients.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section class="demo-section" id="demo">
+  <div class="demo-container">
+    <div>
+      <div class="section-label">How It Works</div>
+      <div class="section-title">Add a domain.<br>See everything.</div>
+      <p class="section-desc" style="margin-bottom: 2rem;">nspeek auto-discovers every DNS record, starts monitoring from 24+ global locations, and builds a living dashboard of your DNS health — in seconds.</p>
+      <p class="section-desc">When something changes or breaks, you know immediately. When your boss asks "was DNS up last month?" — you have the report.</p>
+    </div>
+
+    <div>
+      <!-- Records Panel -->
+      <div class="demo-panel" style="margin-bottom: 1.5rem;">
+        <div class="demo-header">
+          <h4>acmecorp.com — Records</h4>
+          <div class="status-live"><span class="dot"></span> LIVE</div>
+        </div>
+        <div class="demo-body">
+          <div class="record-row">
+            <span class="record-type">A</span>
+            <span class="record-value">104.26.10.78</span>
+            <span class="record-status ok">✓ Healthy</span>
+          </div>
+          <div class="record-row">
+            <span class="record-type">AAAA</span>
+            <span class="record-value">2606:4700::681a</span>
+            <span class="record-status ok">✓ Healthy</span>
+          </div>
+          <div class="record-row">
+            <span class="record-type">MX</span>
+            <span class="record-value">mail.acmecorp.com</span>
+            <span class="record-status ok">✓ Healthy</span>
+          </div>
+          <div class="record-row">
+            <span class="record-type">TXT</span>
+            <span class="record-value">v=spf1 ... ~all</span>
+            <span class="record-status warn">⚠ Weak</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Latency Panel -->
+      <div class="demo-panel">
+        <div class="demo-header">
+          <h4>Resolution Latency</h4>
+          <h4 style="color: var(--text-muted); font-weight: 400;">Last 24h avg</h4>
+        </div>
+        <div class="demo-body">
+          <div class="latency-row">
+            <span class="latency-label">🇺🇸 US East</span>
+            <div class="latency-bar-bg"><div class="latency-bar" style="width: 18%;"></div></div>
+            <span class="latency-ms">12ms</span>
+          </div>
+          <div class="latency-row">
+            <span class="latency-label">🇬🇧 London</span>
+            <div class="latency-bar-bg"><div class="latency-bar" style="width: 28%;"></div></div>
+            <span class="latency-ms">19ms</span>
+          </div>
+          <div class="latency-row">
+            <span class="latency-label">🇩🇪 Frankfurt</span>
+            <div class="latency-bar-bg"><div class="latency-bar" style="width: 32%;"></div></div>
+            <span class="latency-ms">22ms</span>
+          </div>
+          <div class="latency-row">
+            <span class="latency-label">🇯🇵 Tokyo</span>
+            <div class="latency-bar-bg"><div class="latency-bar" style="width: 55%;"></div></div>
+            <span class="latency-ms">38ms</span>
+          </div>
+          <div class="latency-row">
+            <span class="latency-label">🇦🇺 Sydney</span>
+            <div class="latency-bar-bg"><div class="latency-bar" style="width: 65%;"></div></div>
+            <span class="latency-ms">45ms</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div style="text-align: center;">
+    <div class="section-label">Pricing</div>
+    <div class="section-title">Start free. Scale as you grow.</div>
+    <p class="section-desc" style="margin: 0 auto;">Monitor one domain free forever. Upgrade when you need more domains, faster checks, or team features.</p>
+  </div>
+
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="price-name">Free</div>
+      <div class="price-amount">$0</div>
+      <div class="price-desc">Perfect for personal projects and testing the waters.</div>
+      <ul class="price-features">
+        <li>1 domain</li>
+        <li>5-minute checks</li>
+        <li>Email alerts</li>
+        <li>7 days of history</li>
+      </ul>
+      <a href="#cta" class="btn-secondary">Get Started</a>
+    </div>
+
+    <div class="price-card featured">
+      <div class="price-name">Pro</div>
+      <div class="price-amount">$19<span>/mo</span></div>
+      <div class="price-desc">For developers and small teams who need real visibility.</div>
+      <ul class="price-features">
+        <li>10 domains</li>
+        <li>1-minute checks</li>
+        <li>Slack + email alerts</li>
+        <li>Full history + API</li>
+        <li>SLA reports</li>
+      </ul>
+      <a href="#cta" class="btn-primary">Get Early Access</a>
+    </div>
+
+    <div class="price-card">
+      <div class="price-name">Team</div>
+      <div class="price-amount">$49<span>/mo</span></div>
+      <div class="price-desc">For agencies and ops teams managing multiple domains.</div>
+      <ul class="price-features">
+        <li>50 domains</li>
+        <li>30-second checks</li>
+        <li>PagerDuty + webhooks</li>
+        <li>Team workspaces</li>
+        <li>Custom reports</li>
+      </ul>
+      <a href="#cta" class="btn-secondary">Contact Us</a>
+    </div>
+
+    <div class="price-card">
+      <div class="price-name">Enterprise</div>
+      <div class="price-amount">Custom</div>
+      <div class="price-desc">Unlimited domains, SSO, MSP mode, and dedicated support.</div>
+      <ul class="price-features">
+        <li>Unlimited domains</li>
+        <li>Custom intervals</li>
+        <li>SSO / SAML</li>
+        <li>White-label reports</li>
+        <li>Dedicated support</li>
+      </ul>
+      <a href="#cta" class="btn-secondary">Talk to Sales</a>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="cta">
+  <div class="glow-orb"></div>
+  <div class="section-label">Early Access</div>
+  <div class="section-title">Stop guessing.<br>Start seeing.</div>
+  <p class="section-desc" style="margin: 0 auto 2.5rem;">Join the waitlist to be first in line when nspeek launches. Free tier included — no credit card required.</p>
+  <div id="form-wrapper">
+    <form id="waitlist-form" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="bot-field" class="cta-input-group">
+      <input type="hidden" name="form-name" value="waitlist">
+      <p style="display:none;"><input name="bot-field"></p>
+      <input type="email" name="email" placeholder="you@company.com" required>
+      <button type="submit" class="btn-primary">Join Waitlist →</button>
+    </form>
+  </div>
+  <div id="form-success" style="display:none;">
+    <p style="font-size: 1.1rem; color: var(--green); font-weight: 600;">You're on the list! 🎉</p>
+    <p style="font-size: 0.9rem; color: var(--text-dim); margin-top: 0.5rem;">We'll let you know as soon as nspeek is ready.</p>
+  </div>
+  <p id="form-note" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem;">No spam. We'll only email you when we launch.</p>
+</section>
+
+<script>
+  document.getElementById('waitlist-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    btn.textContent = 'Submitting...';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(new FormData(form)).toString()
+      });
+
+      if (res.ok) {
+        document.getElementById('form-wrapper').style.display = 'none';
+        document.getElementById('form-success').style.display = 'block';
+        document.getElementById('form-note').style.display = 'none';
+      } else {
+        btn.textContent = 'Try again →';
+        btn.disabled = false;
+      }
+    } catch (err) {
+      btn.textContent = 'Try again →';
+      btn.disabled = false;
+    }
+  });
+</script>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <p>© 2026 nspeek.com — DNS Monitoring & Intelligence</p>
+    <div class="footer-links">
+      <a href="#">Twitter</a>
+      <a href="#">GitHub</a>
+      <a href="#">Docs</a>
+      <a href="#">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
